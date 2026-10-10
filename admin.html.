@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel de administración</title>
+<style>
+  :root { --bg:#F4F1EA; --card:#fff; --ink:#1E1B16; --muted:#7A7167; --line:#E2DACB; --accent:#E4572E; --ok:#2D6A4F; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--ink); font-size:15px; }
+  header { background:var(--ink); color:#fff; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  header h1 { font-size:1.05rem; margin:0; }
+  nav { display:flex; gap:6px; overflow-x:auto; padding:10px 12px; background:#fff; border-bottom:1px solid var(--line); }
+  nav button { flex:0 0 auto; padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:#fff; cursor:pointer; font:inherit; }
+  nav button[aria-pressed="true"] { background:var(--ink); color:#fff; border-color:var(--ink); }
+  main { padding:14px; max-width:900px; margin:0 auto; }
+  .panel { display:none; } .panel.on { display:block; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; }
+  h2 { font-size:1.05rem; margin:0 0 10px; }
+  label { display:block; font-size:0.85rem; color:var(--muted); margin:8px 0 3px; }
+  input, textarea, select { width:100%; font:inherit; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  textarea { min-height:70px; resize:vertical; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width:520px) { .row { grid-template-columns:1fr; } }
+  .btn { padding:10px 14px; border:0; border-radius:8px; background:var(--ink); color:#fff; font:inherit; cursor:pointer; margin-top:10px; }
+  .btn.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+  .btn.danger { background:var(--accent); }
+  .btn.small { padding:6px 10px; font-size:0.85rem; margin-top:0; }
+  .item { display:flex; justify-content:space-between; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .item:last-child { border-bottom:0; }
+  .muted { color:var(--muted); font-size:0.85rem; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:12px; }
+  .stats .card { margin:0; text-align:center; }
+  .stat { font-size:1.8rem; font-weight:700; }
+  .tag { display:inline-block; font-size:0.75rem; padding:2px 8px; border-radius:999px; background:#EFE9DC; }
+  .tag.ok { background:#D8EEE2; color:var(--ok); }
+  .tag.off { background:#F6D9CF; color:#9A3412; }
+  .hidden { display:none !important; }
+  #login { max-width:340px; margin:12vh auto; }
+  .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 16px; border-radius:8px; opacity:0; transition:opacity .2s; pointer-events:none; max-width:90%; text-align:center; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<div id="login" class="card">
+  <h2>Ingresar</h2>
+  <label for="email">Mail</label>
+  <input id="email" type="email" autocomplete="username">
+  <label for="pass">Contraseña</label>
+  <input id="pass" type="password" autocomplete="current-password">
+  <button class="btn" id="btnLogin">Entrar</button>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>Panel de ofertas</h1>
+    <button class="btn ghost small" id="btnSalir">Salir</button>
+  </header>
+  <nav id="tabs">
+    <button data-tab="stats" aria-pressed="true">Estadísticas</button>
+    <button data-tab="productos" aria-pressed="false">Productos</button>
+    <button data-tab="textos" aria-pressed="false">Textos</button>
+    <button data-tab="politicas" aria-pressed="false">Políticas</button>
+    <button data-tab="mensajes" aria-pressed="false">Mensajes</button>
+    <button data-tab="valoraciones" aria-pressed="false">Valoraciones</button>
+  </nav>
+
+  <main>
+    <section class="panel on" id="p-stats">
+      <div class="stats">
+        <div class="card"><div class="muted">Visitas</div><div class="stat" id="sVisitas">0</div></div>
+        <div class="card"><div class="muted">Clics totales</div><div class="stat" id="sClics">0</div></div>
+        <div class="card"><div class="muted">Mensajes</div><div class="stat" id="sMensajes">0</div></div>
+        <div class="card"><div class="muted">Valoraciones</div><div class="stat" id="sValoraciones">0</div></div>
+      </div>
+      <div class="card"><h2>Clics por producto</h2><div id="listaClics"></div></div>
+    </section>
+
+    <section class="panel" id="p-productos">
+      <div class="card">
+        <h2 id="tituloForm">Nuevo producto</h2>
+        <input type="hidden" id="pId">
+        <label for="pNombre">Nombre</label><input id="pNombre">
+        <div class="row">
+          <div><label for="pPrecio">Precio actual</label><input id="pPrecio" type="number"></div>
+          <div><label for="pAnterior">Precio anterior</label><input id="pAnterior" type="number"></div>
+        </div>
+        <label for="pLink">Link de afiliado</label><input id="pLink" placeholder="https://meli.la/...">
+        <label for="pImagen">Link de la imagen (opcional)</label><input id="pImagen">
+        <div class="row">
+          <div><label for="pCupon">Cupón (opcional)</label><input id="pCupon"></div>
+          <div><label for="pVence">Vence el (opcional)</label><input id="pVence" type="date"></div>
+        </div>
+        <label for="pCategoria">Categoría</label><input id="pCategoria" list="cats" placeholder="Tecnología, Hogar...">
+        <datalist id="cats"></datalist>
+        <label for="pDesc">Descripción corta</label><textarea id="pDesc"></textarea>
+        <label><input type="checkbox" id="pActivo" style="width:auto"> Mostrar en la tienda</label>
+        <button class="btn" id="btnGuardarProd">Guardar producto</button>
+        <button class="btn ghost" id="btnLimpiarProd">Limpiar</button>
+      </div>
+      <div class="card">
+        <h2>Tus productos</h2>
+        <input id="buscarProd" placeholder="Buscar..." style="margin-bottom:8px">
+        <div id="listaProd"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="p-textos">
+      <div class="card">
+        <h2>Textos de la página</h2>
+        <label for="tTitulo">Título</label><input id="tTitulo">
+        <label for="tSub">Subtítulo</label><textarea id="tSub"></textarea>
+        <label for="tBanner">Mensaje informativo (vacío = oculto)</label><textarea id="tBanner"></textarea>
+        <label for="tFooter">Pie de página</label><textarea id="tFooter"></textarea>
+        <button class="btn" id="btnGuardarTextos">Guardar textos</button>
+      </div>
+    </section>
+
+    <section class="panel" id="p-politicas">
+      <div class="card">
+        <h2>Políticas y condiciones</h2>
+        <label for="tPrivacidad">Política de privacidad</label><textarea id="tPrivacidad" style="min-height:120px"></textarea>
+        <label for="tML">Aviso del programa de afiliados de Mercado Libre</label><textarea id="tML" style="min-height:120px"></textarea>
+        <label for="tCondiciones">Condiciones de uso</label><textarea id="tCondiciones" style="min-height:120px"></textarea>
+        <button class="btn" id="btnGuardarPol">Guardar políticas</button>
+      </div>
+    </section>
+
+    <section class="panel" id="p-mensajes">
+      <div class="card"><h2>Mensajes privados</h2><div id="listaMensajes"></div></div>
+    </section>
+
+    <section class="panel" id="p-valoraciones">
+      <div class="card">
+        <h2>Valoraciones</h2>
+        <p class="muted">Solo se muestran en la tienda las que aprobás.</p>
+        <div id="listaValoraciones"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = "https://fsrzngbwdcraapenfpdn.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzcnpuZ2J3ZGNyYWFwZW5mcGRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1ODQ1NzUsImV4cCI6MjEwNzE2MDU3NX0.kHzfiUvYNVTSVpIWdSOj1cvHA5sj5OLTrQwCKDvmStE";
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  let products = [], settings = {}, messages = [], reviews = [];
+
+  const fmt = n => n ? "$ " + Number(n).toLocaleString("es-AR") : "";
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const $ = id => document.getElementById(id);
+
+  function toast(msg) {
+    const t = $("toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  async function esAdministrador() {
+    const { data, error } = await sb.rpc("es_admin");
+    return !error && data === true;
+  }
+
+  async function mostrarSiLogueado() {
+    const { data } = await sb.auth.getSession();
+    if (data.session && await esAdministrador()) { entrar(); }
+    else if (data.session) { await sb.auth.signOut(); }
+  }
+
+  function entrar() {
+    $("login").classList.add("hidden");
+    $("app").classList.remove("hidden");
+    cargarTodo();
+  }
+
+  $("btnLogin").onclick = async () => {
+    const { error } = await sb.auth.signInWithPassword({ email: $("email").value.trim(), password: $("pass").value });
+    if (error) return toast("Mail o contraseña incorrectos");
+    if (!await esAdministrador()) { await sb.auth.signOut(); return toast("Esta cuenta no es de administrador"); }
+    $("pass").value = "";
+    entrar();
+  };
+  $("pass").addEventListener("keydown", e => { if (e.key === "Enter") $("btnLogin").click(); });
+
+  $("btnSalir").onclick = async () => {
+    await sb.auth.signOut();
+    $("app").classList.add("hidden");
+    $("login").classList.remove("hidden");
+  };
+
+  $("tabs").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    document.querySelectorAll("#tabs button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    document.querySelectorAll(".panel").forEach(s => s.classList.toggle("on", s.id === "p-" + b.dataset.tab));
+  });
+
+  async function cargarTodo() {
+    const [p, s, m, r, st] = await Promise.all([
+      sb.from("products").select("*").order("created_at", { ascending: false }),
+      sb.from("settings").select("*"),
+      sb.from("messages").select("*").order("created_at", { ascending: false }),
+      sb.from("reviews").select("*").order("created_at", { ascending: false }),
+      sb.from("stats").select("*")
+    ]);
+    products = p.data || [];
+    settings = Object.fromEntries((s.data || []).map(x => [x.key, x.value]));
+    messages = m.data || [];
+    reviews = r.data || [];
+    const visitas = (st.data || []).find(x => x.key === "visitas");
+    renderStats(visitas ? visitas.value : 0);
+    renderProductos();
+    renderTextos();
+    renderPoliticas();
+    renderMensajes();
+    renderValoraciones();
+  }
+
+  function renderStats(visitas) {
+    $("sVisitas").textContent = visitas;
+    $("sClics").textContent = products.reduce((a, p) => a + (p.clicks || 0), 0);
+    $("sMensajes").textContent = messages.length;
+    $("sValoraciones").textContent = reviews.length;
+    const orden = [...products].sort((a, b) => (b.clicks || 0) - (a.clicks || 0));
+    $("listaClics").innerHTML = orden.map(p =>
+      `<div class="item"><span>${esc(p.nombre)}</span><strong>${p.clicks || 0} clics</strong></div>`).join("") || `<p class="muted">Todavía no hay productos.</p>`;
+  }
+
+  function limpiarProd() {
+    ["pId","pNombre","pPrecio","pAnterior","pLink","pImagen","pCupon","pVence","pCategoria","pDesc"].forEach(id => $(id).value = "");
+    $("pActivo").checked = true;
+    $("tituloForm").textContent = "Nuevo producto";
+  }
+  $("btnLimpiarProd").onclick = limpiarProd;
+
+  $("btnGuardarProd").onclick = async () => {
+    const nombre = $("pNombre").value.trim();
+    const precio = Number($("pPrecio").value);
+    const link = $("pLink").value.trim();
+    if (!nombre || !precio || !link) return toast("Completá nombre, precio y link");
+    const data = {
+      nombre, precio,
+      anterior: Number($("pAnterior").value) || null,
+      imagen: $("pImagen").value.trim(),
+      link,
+      cupon: $("pCupon").value.trim(),
+      vence: $("pVence").value || null,
+      categoria: $("pCategoria").value.trim() || "Otros",
+      descripcion: $("pDesc").value.trim(),
+      activo: $("pActivo").checked
+    };
+    const id = $("pId").value;
+    const { error } = id
+      ? await sb.from("products").update(data).eq("id", id)
+      : await sb.from("products").insert(data);
+    if (error) return toast("No se pudo guardar: " + error.message);
+    limpiarProd();
+    toast("Producto guardado");
+    cargarTodo();
+  };
+
+  function editarProd(id) {
+    const p = products.find(x => x.id === id); if (!p) return;
+    $("pId").value = p.id;
+    $("pNombre").value = p.nombre;
+    $("pPrecio").value = p.precio;
+    $("pAnterior").value = p.anterior || "";
+    $("pLink").value = p.link;
+    $("pImagen").value = p.imagen || "";
+    $("pCupon").value = p.cupon || "";
+    $("pVence").value = p.vence || "";
+    $("pCategoria").value = p.categoria || "";
+    $("pDesc").value = p.descripcion || "";
+    $("pActivo").checked = p.activo;
+    $("tituloForm").textContent = "Editando: " + p.nombre;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function renderProductos() {
+    const q = $("buscarProd").value.toLowerCase();
+    const lista = products.filter(p => p.nombre.toLowerCase().includes(q));
+    $("listaProd").innerHTML = lista.map(p => `
+      <div class="item">
+        <div>
+          <strong>${esc(p.nombre)}</strong><br>
+          <span class="muted">${fmt(p.precio)} · ${esc(p.categoria)} · ${p.clicks || 0} clics</span><br>
+          <span class="tag ${p.activo ? "ok" : "off"}">${p.activo ? "Visible" : "Oculto"}</span>
+        </div>
+        <div>
+          <button class="btn ghost small" data-edit="${p.id}">Editar</button>
+          <button class="btn ghost small" data-toggle="${p.id}">${p.activo ? "Ocultar" : "Mostrar"}</button>
+          <button class="btn danger small" data-del="${p.id}">Borrar</button>
+        </div>
+      </div>`).join("") || `<p class="muted">No hay productos.</p>`;
+    $("cats").innerHTML = [...new Set(products.map(p => p.categoria))].map(c => `<option value="${esc(c)}">`).join("");
+  }
+  $("buscarProd").addEventListener("input", renderProductos);
+
+  $("listaProd").addEventListener("click", async e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.edit) return editarProd(b.dataset.edit);
+    if (b.dataset.toggle) {
+      const p = products.find(x => x.id === b.dataset.toggle);
+      await sb.from("products").update({ activo: !p.activo }).eq("id", p.id);
+      return cargarTodo();
+    }
+    if (b.dataset.del) {
+      if (!confirm("¿Borrar este producto?")) return;
+      await sb.from("products").delete().eq("id", b.dataset.del);
+      cargarTodo();
+    }
+  });
+
+  function renderTextos() {
+    $("tTitulo").value = settings.titulo || "";
+    $("tSub").value = settings.subtitulo || "";
+    $("tBanner").value = settings.banner || "";
+    $("tFooter").value = settings.footer || "";
+  }
+  function renderPoliticas() {
+    $("tPrivacidad").value = settings.privacidad || "";
+    $("tML").value = settings.ml || "";
+    $("tCondiciones").value = settings.condiciones || "";
+  }
+  async function guardarSettings(pares) {
+    const filas = Object.entries(pares).map(([key, value]) => ({ key, value }));
+    const { error } = await sb.from("settings").upsert(filas);
+    if (error) return toast("No se pudo guardar: " + error.message);
+    toast("Guardado");
+    cargarTodo();
+  }
+  $("btnGuardarTextos").onclick = () => guardarSettings({
+    titulo: $("tTitulo").value, subtitulo: $("tSub").value, banner: $("tBanner").value, footer: $("tFooter").value
+  });
+  $("btnGuardarPol").onclick = () => guardarSettings({
+    privacidad: $("tPrivacidad").value, ml: $("tML").value, condiciones: $("tCondiciones").value
+  });
+
+  function renderMensajes() {
+    $("listaMensajes").innerHTML = messages.map(m => `
+      <div class="item" style="display:block">
+        <strong>${esc(m.nombre)}</strong> <span class="muted">${esc(m.email)} · ${new Date(m.created_at).toLocaleString("es-AR")}</span>
+        <p>${esc(m.texto)}</p>
+        ${m.respuesta ? `<p class="muted">Tu respuesta: ${esc(m.respuesta)}</p>` : `
+          <textarea id="r-${m.id}" placeholder="Escribí tu respuesta"></textarea>
+          <button class="btn small" data-reply="${m.id}">Responder</button>`}
+      </div>`).join("") || `<p class="muted">No hay mensajes todavía.</p>`;
+  }
+  $("listaMensajes").addEventListener("click", async e => {
+    const b = e.target.closest("[data-reply]"); if (!b) return;
+    const txt = $("r-" + b.dataset.reply).value.trim();
+    if (!txt) return toast("Escribí una respuesta");
+    const { error } = await sb.from("messages").update({ respuesta: txt }).eq("id", b.dataset.reply);
+    if (error) return toast("No se pudo responder");
+    toast("Respuesta guardada");
+    cargarTodo();
+  });
+
+  function renderValoraciones() {
+    $("listaValoraciones").innerHTML = reviews.map(r => `
+      <div class="item">
+        <div>
+          <strong>${esc(r.nombre)}</strong> <span class="muted">${"★".repeat(r.estrellas)}${"☆".repeat(5 - r.estrellas)}</span><br>
+          <span>${esc(r.texto)}</span><br>
+          <span class="tag ${r.aprobada ? "ok" : "off"}">${r.aprobada ? "Publicada" : "Pendiente"}</span>
+        </div>
+        <div>
+          <button class="btn small ${r.aprobada ? "ghost" : ""}" data-rev="${r.id}">${r.aprobada ? "Ocultar" : "Aprobar"}</button>
+          <button class="btn danger small" data-revdel="${r.id}">Borrar</button>
+        </div>
+      </div>`).join("") || `<p class="muted">Todavía no hay valoraciones.</p>`;
+  }
+  $("listaValoraciones").addEventListener("click", async e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.rev) {
+      const r = reviews.find(x => x.id === b.dataset.rev);
+      await sb.from("reviews").update({ aprobada: !r.aprobada }).eq("id", r.id);
+    }
+    if (b.dataset.revdel) await sb.from("reviews").delete().eq("id", b.dataset.revdel);
+    cargarTodo();
+  });
+
+  mostrarSiLogueado();
+</script>
+</body>
+</html>
