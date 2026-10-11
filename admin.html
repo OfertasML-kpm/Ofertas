@@ -20,6 +20,7 @@
   h2 { font-size:1.05rem; margin:0 0 10px; }
   label { display:block; font-size:0.85rem; color:var(--muted); margin:8px 0 3px; }
   input, textarea, select { width:100%; font:inherit; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  input[type="range"] { padding:0; }
   textarea { min-height:70px; resize:vertical; }
   .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   @media (max-width:520px) { .row { grid-template-columns:1fr; } }
@@ -38,6 +39,9 @@
   .tag.off { background:#F6D9CF; color:#9A3412; }
   .hidden { display:none !important; }
   #login { max-width:340px; margin:12vh auto; }
+  .preview { width:160px; height:160px; background:#F3EEE4; border:1px solid var(--line); border-radius:10px; overflow:hidden; display:grid; place-items:center; margin:8px 0; }
+  .preview img { width:100%; height:100%; }
+  .preview span { color:var(--muted); font-size:0.8rem; }
   .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 16px; border-radius:8px; opacity:0; transition:opacity .2s; pointer-events:none; max-width:90%; text-align:center; }
   .toast.show { opacity:1; }
 </style>
@@ -88,7 +92,28 @@
           <div><label for="pAnterior">Precio anterior</label><input id="pAnterior" type="number"></div>
         </div>
         <label for="pLink">Link de afiliado</label><input id="pLink" placeholder="https://meli.la/...">
-        <label for="pImagen">Link de la imagen (opcional)</label><input id="pImagen">
+        <label for="pImagen">Link de la imagen</label><input id="pImagen">
+
+        <label>Vista previa de la foto</label>
+        <div class="preview" id="previewBox"><span id="previewTxt">Pegá el link de la imagen</span><img id="prevImg" class="hidden"></div>
+        <label for="pAjuste">Cómo se muestra la foto</label>
+        <select id="pAjuste">
+          <option value="contain">Completa (se ve toda la foto)</option>
+          <option value="cover">Recortada (llena el cuadro)</option>
+        </select>
+        <label for="pZoom">Zoom: <span id="zoomVal">1</span></label>
+        <input id="pZoom" type="range" min="0.5" max="3" step="0.05" value="1">
+        <div class="row">
+          <div>
+            <label for="pPosX">Mover a la izquierda o derecha: <span id="xVal">50</span>%</label>
+            <input id="pPosX" type="range" min="0" max="100" step="1" value="50">
+          </div>
+          <div>
+            <label for="pPosY">Mover arriba o abajo: <span id="yVal">50</span>%</label>
+            <input id="pPosY" type="range" min="0" max="100" step="1" value="50">
+          </div>
+        </div>
+
         <div class="row">
           <div><label for="pCupon">Cupón (opcional)</label><input id="pCupon"></div>
           <div><label for="pVence">Vence el (opcional)</label><input id="pVence" type="date"></div>
@@ -230,8 +255,38 @@
       `<div class="item"><span>${esc(p.nombre)}</span><strong>${p.clicks || 0} clics</strong></div>`).join("") || `<p class="muted">Todavía no hay productos.</p>`;
   }
 
+  // VISTA PREVIA DE LA FOTO
+  function actualizarPreview() {
+    const url = $("pImagen").value.trim();
+    const img = $("prevImg");
+    $("zoomVal").textContent = $("pZoom").value;
+    $("xVal").textContent = $("pPosX").value;
+    $("yVal").textContent = $("pPosY").value;
+    if (!url) { img.classList.add("hidden"); $("previewTxt").classList.remove("hidden"); return; }
+    img.src = url;
+    img.classList.remove("hidden");
+    $("previewTxt").classList.add("hidden");
+    img.style.objectFit = $("pAjuste").value;
+    img.style.objectPosition = `${$("pPosX").value}% ${$("pPosY").value}%`;
+    img.style.transform = `scale(${$("pZoom").value})`;
+  }
+  ["pImagen", "pAjuste", "pZoom", "pPosX", "pPosY"].forEach(id => {
+    $(id).addEventListener("input", actualizarPreview);
+    $(id).addEventListener("change", actualizarPreview);
+  });
+
+  function setearImagen(p) {
+    $("pImagen").value = p.imagen || "";
+    $("pAjuste").value = p.imagen_ajuste || "contain";
+    $("pZoom").value = p.imagen_zoom || 1;
+    $("pPosX").value = p.imagen_pos_x ?? 50;
+    $("pPosY").value = p.imagen_pos_y ?? 50;
+    actualizarPreview();
+  }
+
   function limpiarProd() {
-    ["pId","pNombre","pPrecio","pAnterior","pLink","pImagen","pCupon","pVence","pCategoria","pDesc"].forEach(id => $(id).value = "");
+    ["pId","pNombre","pPrecio","pAnterior","pLink","pCupon","pVence","pCategoria","pDesc"].forEach(id => $(id).value = "");
+    setearImagen({ imagen: "", imagen_ajuste: "contain", imagen_zoom: 1, imagen_pos_x: 50, imagen_pos_y: 50 });
     $("pActivo").checked = true;
     $("tituloForm").textContent = "Nuevo producto";
   }
@@ -246,6 +301,10 @@
       nombre, precio,
       anterior: Number($("pAnterior").value) || null,
       imagen: $("pImagen").value.trim(),
+      imagen_ajuste: $("pAjuste").value,
+      imagen_zoom: Number($("pZoom").value),
+      imagen_pos_x: Number($("pPosX").value),
+      imagen_pos_y: Number($("pPosY").value),
       link,
       cupon: $("pCupon").value.trim(),
       vence: $("pVence").value || null,
@@ -270,12 +329,12 @@
     $("pPrecio").value = p.precio;
     $("pAnterior").value = p.anterior || "";
     $("pLink").value = p.link;
-    $("pImagen").value = p.imagen || "";
     $("pCupon").value = p.cupon || "";
     $("pVence").value = p.vence || "";
     $("pCategoria").value = p.categoria || "";
     $("pDesc").value = p.descripcion || "";
     $("pActivo").checked = p.activo;
+    setearImagen(p);
     $("tituloForm").textContent = "Editando: " + p.nombre;
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -384,6 +443,7 @@
     cargarTodo();
   });
 
+  actualizarPreview();
   mostrarSiLogueado();
 </script>
 </body>
