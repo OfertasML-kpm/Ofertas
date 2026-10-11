@@ -135,6 +135,14 @@
     return p.anterior && p.anterior > p.precio ? Math.round((1 - p.precio / p.anterior) * 100) : 0;
   }
 
+  function estiloImagen(p) {
+    const ajuste = p.imagen_ajuste === "cover" ? "cover" : "contain";
+    const x = p.imagen_pos_x ?? 50;
+    const y = p.imagen_pos_y ?? 50;
+    const zoom = p.imagen_zoom || 1;
+    return `object-fit:${ajuste};object-position:${x}% ${y}%;transform:scale(${zoom})`;
+  }
+
   async function cargarTodo() {
     const status = document.getElementById("status");
     try {
@@ -198,7 +206,7 @@
       return `
       <article class="card">
         <div class="thumb">
-          ${p.imagen ? `<img src="${esc(p.imagen)}" alt="${esc(p.nombre)}" loading="lazy">` : `<span class="noimg" aria-hidden="true">${esc(p.nombre.charAt(0))}</span>`}
+          ${p.imagen ? `<img src="${esc(p.imagen)}" alt="${esc(p.nombre)}" loading="lazy" style="${estiloImagen(p)}">` : `<span class="noimg" aria-hidden="true">${esc(p.nombre.charAt(0))}</span>`}
           ${off ? `<span class="stamp">−${off}%</span>` : ""}
         </div>
         <div class="body">
